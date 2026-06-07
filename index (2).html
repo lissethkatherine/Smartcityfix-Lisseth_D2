@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SmartCity-Fix · Sistema de Reportes de Infraestructura</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Syne:wght@700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    /* ═══════════════════════════════════════════
+       VARIABLES & RESET
+    ═══════════════════════════════════════════ */
+    :root {
+      --bg:        #050c14;
+      --surface:   #0b1622;
+      --card:      #0f1f30;
+      --card2:     #132335;
+      --border:    rgba(0,200,140,.18);
+      --border2:   rgba(255,255,255,.06);
+      --accent:    #00e58a;
+      --accent2:   #00b86e;
+      --accent3:   #00ffa3;
+      --blue:      #0ea5e9;
+      --red:       #f43f5e;
+      --amber:     #f59e0b;
+      --text:      #e2f0eb;
+      --muted:     #5c8a7a;
+      --muted2:    #3d6657;
+      --radius:    14px;
+      --radius-sm: 8px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Grid BG ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(0,229,138,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,138,.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 75% 0%, rgba(0,229,138,.09) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 70% at 5% 100%, rgba(14,165,233,.07) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    /* ═══════════════════════════════════════════
+       NAV
+    ═══════════════════════════════════════════ */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 32px;
+      height: 64px;
+      background: rgba(5,12,20,.8);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border2);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none;
+    }
+    .nav-logo-mark {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      border-radius: 9px;
+      display: grid; place-items: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .nav-logo-text {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      color: #fff;
+      letter-spacing: -.3px;
+    }
+    .nav-logo-text span { color: var(--accent); }
+    .nav-links {
+      display: flex; gap: 4px;
+      margin-left: auto;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .82rem;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 6px;
+      transition: color .2s, background .2s;
+    }
+    .nav-links a:hover { color: var(--text); background: var(--border2); }
+    .nav-cta {
+      background: var(--accent);
+      color: var(--bg) !important;
+      font-weight: 700 !important;
+      padding: 7px 18px !important;
+    }
+    .nav-cta:hover { background: var(--accent3) !important; color: var(--bg) !important; }
+    .nav-badge {
+      background: rgba(0,229,138,.12);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      font-size: .68rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 99px;
+      letter-spacing: .05em;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ═══════════════════════════════════════════
+       HERO
+    ═══════════════════════════════════════════ */
+    .hero {
+      position: relative; z-index: 5;
+      padding: 130px 24px 60px;
+      text-align: center;
+    }
+    .hero-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,229,138,.08);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 6px 16px;
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    .hero-chip .dot {
+      width: 7px; height: 7px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(.7); }
+    }
+    .hero h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.2rem, 6vw, 4rem);
+      font-weight: 900;
+      line-height: 1.08;
+      letter-spacing: -.02em;
+      color: #fff;
+      max-width: 780px;
+      margin: 0 auto 20px;
+    }
+    .hero h1 em {
+      font-style: normal;
+      background: linear-gradient(90deg, var(--accent), var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      color: var(--muted);
+      font-size: 1rem;
+      max-width: 560px;
+      margin: 0 auto 36px;
+      line-height: 1.7;
+    }
+    .hero-actions {
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 9px;
+      background: var(--accent);
+      color: var(--bg);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+      font-size: .9rem;
+      padding: 13px 26px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .2s, transform .15s, box-shadow .2s;
+      box-shadow: 0 0 32px rgba(0,229,138,.25);
+    }
+    .btn-primary:hover { background: var(--accent3); transform: translateY(-2px); box-shadow: 0 8px 40px rgba(0,229,138,.35); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 9px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
+      font-size: .9rem;
+      padding: 13px 26px;
+      border-radius: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: border-color .2s, background .2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); background: rgba(0,229,138,.05); }
+
+    /* stats bar */
+    .stats-bar {
+      position: relative; z-index: 5;
+      display: flex; justify-content: center; flex-wrap: wrap; gap: 0;
+      max-width: 700px; margin: 0 auto 60px;
+      border: 1px solid var(--border2);
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .stat-item {
+      flex: 1; min-width: 140px;
+      padding: 20px;
+      text-align: center;
+      border-right: 1px solid var(--border2);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--accent);
+    }
+    .stat-label {
+      font-size: .74rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ═══════════════════════════════════════════
+       HOW IT WORKS
+    ═══════════════════════════════════════════ */
+    .section {
+      position: relative; z-index: 5;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+    .section-label {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: .72rem; font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: 12px;
+    }
+    .section-label::before {
+      content: '';
+      display: block;
+      width: 20px; height: 2px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(1.5rem, 3vw, 2.2rem);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 40px;
+    }
+    .flow-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2px;
+      background: var(--border2);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .flow-step {
+      background: var(--card);
+      padding: 28px 22px;
+      position: relative;
+    }
+    .flow-step-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      color: var(--muted2);
+      font-weight: 600;
+      letter-spacing: .1em;
+      margin-bottom: 14px;
+    }
+    .flow-step-icon {
+      font-size: 1.6rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+    .flow-step h4 {
+      font-weight: 700;
+      font-size: .9rem;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .flow-step p {
+      font-size: .78rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .flow-step.highlight {
+      background: rgba(0,229,138,.06);
+      border: 1px solid var(--border);
+    }
+
+    /* ═══════════════════════════════════════════
+       FORM SECTION
+    ═══════════════════════════════════════════ */
+    #reporte {
+      position: relative; z-index: 5;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 16px 100px;
+    }
+    .form-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .form-header h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .form-header p { color: var(--muted); font-size: .9rem; }
+
+    /* progress steps */
+    .progress-steps {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      margin-bottom: 36px;
+      position: relative;
+    }
+    .progress-steps::before {
+      content: '';
+      position: absolute;
+      top: 14px; left: 14%; right: 14%;
+      height: 1px;
+      background: var(--border2);
+    }
+    .p-step {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      flex: 1;
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--muted);
+      position: relative;
+      cursor: default;
+      transition: color .3s;
+    }
+    .p-step-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--card);
+      border: 2px solid var(--border2);
+      display: grid; place-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem;
+      font-weight: 600;
+      z-index: 1;
+      transition: border-color .3s, background .3s;
+    }
+    .p-step.done .p-step-dot { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+    .p-step.active .p-step-dot { border-color: var(--accent); color: var(--accent); }
+    .p-step.active { color: var(--accent); }
+
+    /* card sections */
+    .form-card {
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 18px;
+      padding: 32px;
+      margin-bottom: 16px;
+      transition: border-color .3s;
+    }
+    .form-card:focus-within { border-color: var(--border); }
+    .card-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 28px;
+    }
+    .card-icon {
+      width: 40px; height: 40px;
+      background: rgba(0,229,138,.1);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: grid; place-items: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .card-header-text h3 {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #fff;
+    }
+    .card-header-text p {
+      font-size: .76rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* fields */
+    .field-group { margin-bottom: 20px; }
+    .field-label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 8px;
+    }
+    .field-label .req { color: var(--red); font-size: .9em; }
+    .field-label .optional {
+      font-size: .68rem;
+      font-weight: 500;
+      color: var(--muted2);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .field-input, .field-select, .field-textarea {
+      width: 100%;
+      background: var(--surface);
+      border: 1.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 12px 15px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .9rem;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      -webkit-appearance: none;
+    }
+    .field-input::placeholder, .field-textarea::placeholder { color: var(--muted2); }
+    .field-input:focus, .field-select:focus, .field-textarea:focus {
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 3px rgba(0,229,138,.08);
+    }
+    .field-input.valid { border-color: var(--accent2); }
+    .field-input.invalid, .field-select.invalid, .field-textarea.invalid {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(244,63,94,.08);
+    }
+    .field-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235c8a7a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+      cursor: pointer;
+    }
+    .field-select option { background: #0f1f30; }
+    .field-textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+    .field-error {
+      font-size: .73rem;
+      color: var(--red);
+      margin-top: 6px;
+      display: none;
+    }
+    .field-error.show { display: block; }
+    .field-hint {
+      font-size: .73rem;
+      color: var(--muted2);
+      margin-top: 5px;
+    }
+    .char-count {
+      text-align: right;
+      font-size: .72rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--muted2);
+      margin-top: 5px;
+    }
+    .char-count.warn { color: var(--amber); }
+    .char-count.limit { color: var(--red); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 520px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    /* phone */
+    .phone-row { display: flex; gap: 10px; }
+    .phone-row .field-select { width: 120px; flex-shrink: 0; }
+    .phone-row .field-input { flex: 1; }
+
+    /* info box */
+    .info-box {
+      display: flex; gap: 10px; align-items: flex-start;
+      background: rgba(0,229,138,.05);
+      border: 1px solid rgba(0,229,138,.15);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 20px;
+      font-size: .78rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .info-box .ib-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── tipo de daño cards ── */
+    .type-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .type-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border2);
+      border-radius: 10px;
+      padding: 14px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, transform .15s;
+      user-select: none;
+    }
+    .type-card:hover { border-color: var(--muted2); transform: translateY(-2px); }
+    .type-card.sel {
+      border-color: var(--accent);
+      background: rgba(0,229,138,.07);
+    }
+    .type-card .tc-icon { font-size: 1.5rem; margin-bottom: 5px; }
+    .type-card .tc-label {
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .type-card.invalid-sel { border-color: var(--red); }
+
+    /* ── prioridad ── */
+    .prio-row { display: flex; gap: 10px; }
+    .prio-btn {
+      flex: 1;
+      background: var(--surface);
+      border: 1.5px solid var(--border2);
+      border-radius: 10px;
+      padding: 14px 10px;
+      text-align: center;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+      font-size: .82rem;
+      color: var(--text);
+      transition: .2s;
+      user-select: none;
+    }
+    .prio-btn .pb-icon { font-size: 1.2rem; display: block; margin-bottom: 5px; }
+    .prio-btn:hover { border-color: var(--muted2); }
+    .prio-btn[data-p="baja"].sel    { border-color: var(--blue); background: rgba(14,165,233,.1); color: var(--blue); }
+    .prio-btn[data-p="moderada"].sel{ border-color: var(--amber); background: rgba(245,158,11,.1); color: var(--amber); }
+    .prio-btn[data-p="critica"].sel { border-color: var(--red); background: rgba(244,63,94,.1); color: var(--red); }
+
+    /* ── upload area ── */
+    .upload-zone {
+      border: 2px dashed var(--border2);
+      border-radius: 12px;
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: border-color .2s, background .2s;
+    }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--accent2); background: rgba(0,229,138,.03); }
+    .upload-zone.invalid { border-color: var(--red); }
+    .upload-zone input[type=file] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .uz-icon { font-size: 2rem; margin-bottom: 10px; }
+    .uz-title { font-weight: 700; font-size: .92rem; color: #fff; }
+    .uz-sub {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .uz-types {
+      display: flex; gap: 6px; justify-content: center; margin-top: 12px; flex-wrap: wrap;
+    }
+    .uz-tag {
+      background: var(--card2);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .64rem;
+      color: var(--muted);
+      padding: 2px 7px;
+    }
+
+    .file-preview {
+      display: none;
+      margin-top: 14px;
+      position: relative;
+    }
+    .file-preview img {
+      width: 100%;
+      max-height: 220px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--border2);
+    }
+    .file-preview .pdf-preview {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--card2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .pdf-preview .pdf-icon { font-size: 1.6rem; }
+    .pdf-preview .pdf-name { font-size: .83rem; font-weight: 600; color: var(--text); }
+    .pdf-preview .pdf-size { font-size: .73rem; color: var(--muted); margin-top: 2px; }
+    .remove-file {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(244,63,94,.85);
+      border: none; border-radius: 6px;
+      color: #fff; cursor: pointer;
+      font-size: .72rem; font-weight: 700;
+      padding: 4px 10px;
+      transition: background .2s;
+    }
+    .remove-file:hover { background: var(--red); }
+
+    /* ── geo button ── */
+    .geo-btn {
+      width: 100%;
+      background: rgba(0,229,138,.08);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--accent);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+      font-size: .88rem;
+      padding: 13px 16px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: background .2s;
+      margin-bottom: 14px;
+    }
+    .geo-btn:hover { background: rgba(0,229,138,.14); }
+    .geo-btn.loading { opacity: .7; cursor: not-allowed; }
+    .geo-spin {
+      display: none;
+      width: 14px; height: 14px;
+      border: 2px solid var(--accent);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: sp .7s linear infinite;
+    }
+    @keyframes sp { to { transform: rotate(360deg); } }
+
+    /* ── terms ── */
+    .terms-row {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+    }
+    .terms-row input[type=checkbox] {
+      width: 18px; height: 18px;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .terms-row label {
+      font-size: .8rem;
+      color: var(--muted);
+      line-height: 1.6;
+      cursor: pointer;
+    }
+    .terms-row label a { color: var(--accent); text-decoration: none; }
+
+    /* ── submit ── */
+    .submit-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: var(--bg);
+      border: none;
+      border-radius: 12px;
+      padding: 17px 24px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: opacity .2s, transform .15s, box-shadow .2s;
+      box-shadow: 0 4px 30px rgba(0,229,138,.28);
+      letter-spacing: .02em;
+      margin-top: 6px;
+    }
+    .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,229,138,.38); opacity: .92; }
+    .submit-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    .progress-wrap {
+      display: none;
+      height: 4px;
+      background: var(--border2);
+      border-radius: 99px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--blue));
+      border-radius: 99px;
+      width: 0;
+      transition: width .4s ease;
+    }
+
+    /* ── success panel ── */
+    #success-panel {
+      display: none;
+      text-align: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px 32px;
+      margin-bottom: 24px;
+      animation: popIn .5s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes popIn { from { transform: scale(.88); opacity: 0; } }
+    #success-panel .big { font-size: 3.5rem; margin-bottom: 16px; }
+    #success-panel h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    #success-panel p { color: var(--muted); font-size: .9rem; line-height: 1.7; }
+    .ticket-box {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: rgba(0,229,138,.08);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.2rem;
+      font-weight: 600;
+      padding: 12px 24px;
+      border-radius: 10px;
+      margin: 20px 0;
+      letter-spacing: .08em;
+    }
+    .ticket-box .copy-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 1rem;
+      padding: 2px;
+      transition: color .2s;
+    }
+    .ticket-box .copy-btn:hover { color: var(--accent); }
+    .success-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+    .telegram-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #0088cc;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 22px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+      font-size: .88rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .2s;
+    }
+    .telegram-btn:hover { background: #0077b5; }
+    .reset-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--muted);
+      border-radius: 10px;
+      padding: 12px 22px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
+      font-size: .88rem;
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+    .reset-btn:hover { border-color: var(--muted2); color: var(--text); }
+
+    /* ═══════════════════════════════════════════
+       BOT SECTION
+    ═══════════════════════════════════════════ */
+    #bot {
+      position: relative; z-index: 5;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+    .bot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 700px) { .bot-grid { grid-template-columns: 1fr; } }
+    .bot-card {
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 18px;
+      padding: 28px;
+    }
+    .bot-card-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .bot-card p { color: var(--muted); font-size: .83rem; line-height: 1.7; margin-bottom: 16px; }
+    .command-list { display: flex; flex-direction: column; gap: 8px; }
+    .cmd-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .cmd-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .78rem;
+      color: var(--accent);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .cmd-desc { font-size: .77rem; color: var(--muted); line-height: 1.4; }
+    .tg-link-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%;
+      background: #0088cc;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 13px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+      font-size: .88rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .2s;
+    }
+    .tg-link-btn:hover { background: #0077b5; }
+
+    /* priority badges */
+    .badge-row { display: flex; flex-direction: column; gap: 10px; }
+    .badge-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+    }
+    .badge-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .badge-item h5 { font-size: .82rem; font-weight: 700; color: var(--text); }
+    .badge-item p { font-size: .74rem; color: var(--muted); margin: 0; }
+
+    /* ═══════════════════════════════════════════
+       TOAST
+    ═══════════════════════════════════════════ */
+    #toast {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(70px);
+      min-width: 320px; max-width: 90vw;
+      background: var(--card2);
+      border: 1px solid var(--border2);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      z-index: 9999;
+      transition: transform .4s cubic-bezier(.34,1.56,.64,1), opacity .3s;
+      opacity: 0;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    #toast.success { border-color: var(--accent2); }
+    #toast.error { border-color: var(--red); }
+    .toast-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .toast-title { font-weight: 700; font-size: .88rem; }
+    .toast-msg { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+
+    /* ═══════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════ */
+    footer {
+      position: relative; z-index: 5;
+      text-align: center;
+      padding: 24px;
+      font-size: .75rem;
+      color: var(--muted2);
+      border-top: 1px solid var(--border2);
+    }
+    footer strong { color: var(--accent); }
+
+    /* mobile nav */
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+      .nav-badge { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ NAV ══════════════ -->
+<nav>
+  <a href="#" class="nav-logo">
+    <div class="nav-logo-mark">🛠</div>
+    <div class="nav-logo-text">Smart<span>City</span>-Fix</div>
+  </a>
+  <span class="nav-badge">v1.0 BETA</span>
+  <div class="nav-links">
+    <a href="#como-funciona">Cómo funciona</a>
+    <a href="#reporte">Reportar</a>
+    <a href="#bot">Bot Telegram</a>
+    <a href="#reporte" class="nav-cta">+ Nuevo reporte</a>
+  </div>
+</nav>
+
+<!-- ══════════════ HERO ══════════════ -->
+<div class="hero">
+  <div class="hero-chip"><span class="dot"></span> Sistema IA Activo · Procesando en tiempo real</div>
+  <h1>Reporta daños en<br/>la infraestructura de<br/><em>tu ciudad</em></h1>
+  <p class="hero-sub">Sistema inteligente de diagnóstico y enrutamiento de reportes urbanos. Tu reporte llega al equipo correcto en minutos, no en días.</p>
+  <div class="hero-actions">
+    <a href="#reporte" class="btn-primary">📸 Hacer un reporte</a>
+    <a href="#como-funciona" class="btn-secondary">¿Cómo funciona?</a>
+  </div>
+</div>
+
+<div style="position:relative;z-index:5">
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-num">IA</div>
+      <div class="stat-label">Visión Artificial + NLP</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">3</div>
+      <div class="stat-label">Niveles de prioridad</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">24/7</div>
+      <div class="stat-label">Bot Telegram activo</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">Auto</div>
+      <div class="stat-label">Enrutamiento inteligente</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CÓMO FUNCIONA ══════════════ -->
+<div id="como-funciona" class="section">
+  <div class="section-label">Flujo del sistema</div>
+  <div class="section-title">¿Cómo procesa tu reporte?</div>
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="flow-step-num">PASO 01</div>
+      <span class="flow-step-icon">📝</span>
+      <h4>Ciudadano reporta</h4>
+      <p>Completas el formulario con foto, ubicación GPS y descripción del daño.</p>
+    </div>
+    <div class="flow-step highlight">
+      <div class="flow-step-num">PASO 02</div>
+      <span class="flow-step-icon">⚡</span>
+      <h4>n8n recibe el webhook</h4>
+      <p>El motor de automatización captura el reporte en tiempo real e inicia el procesamiento.</p>
+    </div>
+    <div class="flow-step highlight">
+      <div class="flow-step-num">PASO 03</div>
+      <span class="flow-step-icon">🧠</span>
+      <h4>IA analiza imagen + texto</h4>
+      <p>Visión artificial valida el daño. NLP detecta palabras de peligro. Se asigna un score de severidad.</p>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">PASO 04</div>
+      <span class="flow-step-icon">🎯</span>
+      <h4>Enrutamiento automático</h4>
+      <p>Según prioridad y confianza: despacho inmediato, revisión manual o solicitud de más evidencia.</p>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">PASO 05</div>
+      <span class="flow-step-icon">📊</span>
+      <h4>Registro en Google Sheets</h4>
+      <p>El ticket se almacena con ID único, coordenadas, estado y diagnóstico de la IA.</p>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">PASO 06</div>
+      <span class="flow-step-icon">🤖</span>
+      <h4>Notificación por Telegram</h4>
+      <p>Recibes confirmación con tu Ticket ID. Puedes consultar el estado en cualquier momento.</p>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">PASO 07</div>
+      <span class="flow-step-icon">🔧</span>
+      <h4>Cuadrilla despachada</h4>
+      <p>El contratista o entidad de emergencia recibe la asignación y acude al sitio.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ FORMULARIO ══════════════ -->
+<div id="reporte">
+  <div class="form-header">
+    <div class="section-label" style="justify-content:center">Formulario de reporte</div>
+    <h2>Registra el daño en tu ciudad</h2>
+    <p>Todos los campos marcados con <span style="color:var(--red)">*</span> son obligatorios</p>
+  </div>
+
+  <!-- progress steps -->
+  <div class="progress-steps">
+    <div class="p-step active" id="ps1">
+      <div class="p-step-dot">01</div>
+      <span>Datos</span>
+    </div>
+    <div class="p-step" id="ps2">
+      <div class="p-step-dot">02</div>
+      <span>Problema</span>
+    </div>
+    <div class="p-step" id="ps3">
+      <div class="p-step-dot">03</div>
+      <span>Evidencia</span>
+    </div>
+    <div class="p-step" id="ps4">
+      <div class="p-step-dot">04</div>
+      <span>Ubicación</span>
+    </div>
+  </div>
+
+  <!-- SUCCESS PANEL -->
+  <div id="success-panel">
+    <div class="big">🎉</div>
+    <h3>¡Reporte registrado!</h3>
+    <p>Tu reporte fue recibido y la IA está procesando la evidencia.<br/>Guarda tu número de ticket para hacer seguimiento:</p>
+    <div class="ticket-box">
+      <span id="ticket-display">SCF-000000</span>
+      <button class="copy-btn" onclick="copyTicket()" title="Copiar ticket">📋</button>
+    </div>
+    <p>Recibirás una notificación en Telegram cuando el estado cambie.<br/>
+    También puedes consultar tu ticket directamente con el bot.</p>
+    <div class="success-actions">
+      <a href="https://t.me/UrbanFix_Bot" target="_blank" class="telegram-btn">
+        ✈️ Consultar en Telegram
+      </a>
+      <button class="reset-btn" onclick="resetForm()">+ Enviar otro reporte</button>
+    </div>
+  </div>
+
+  <form id="reportForm" novalidate>
+
+    <!-- ══ SECCIÓN 1: DATOS PERSONALES ══ -->
+    <div class="form-card" id="sec1">
+      <div class="card-header">
+        <div class="card-icon">👤</div>
+        <div class="card-header-text">
+          <h3>Datos de contacto</h3>
+          <p>Solo se usan para el seguimiento de tu reporte (Habeas Data)</p>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <span class="ib-icon">🔒</span>
+        <span>Tu información es confidencial y se protege bajo la Ley 1581 de 2012 (Habeas Data). No la compartimos con terceros.</span>
+      </div>
+
+      <div class="grid-2">
+        <div class="field-group">
+          <div class="field-label">Nombre <span class="req">*</span></div>
+          <input class="field-input" id="f-nombre" type="text" placeholder="Ej: María Camila" maxlength="60" autocomplete="given-name"/>
+          <div class="field-error" id="e-nombre">Ingresa tu nombre (mínimo 2 caracteres)</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Apellido <span class="req">*</span></div>
+          <input class="field-input" id="f-apellido" type="text" placeholder="Ej: García López" maxlength="60" autocomplete="family-name"/>
+          <div class="field-error" id="e-apellido">Ingresa tu apellido (mínimo 2 caracteres)</div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Número de cédula / documento <span class="req">*</span></div>
+        <input class="field-input" id="f-cedula" type="text" placeholder="Solo números · Ej: 1098765432" maxlength="15" inputmode="numeric"/>
+        <div class="field-hint">Solo dígitos, entre 5 y 15 números</div>
+        <div class="field-error" id="e-cedula">Ingresa un número de documento válido (5–15 dígitos, sin letras)</div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Correo electrónico <span class="req">*</span></div>
+        <input class="field-input" id="f-correo" type="email" placeholder="tucorreo@dominio.com" autocomplete="email"/>
+        <div class="field-error" id="e-correo">Correo inválido · Formato esperado: nombre@dominio.com</div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Teléfono / WhatsApp <span class="req">*</span></div>
+        <div class="phone-row">
+          <select class="field-select" id="f-prefijo">
+            <option value="+57">🇨🇴 +57</option>
+            <option value="+1">🇺🇸 +1</option>
+            <option value="+52">🇲🇽 +52</option>
+            <option value="+34">🇪🇸 +34</option>
+            <option value="+54">🇦🇷 +54</option>
+            <option value="+56">🇨🇱 +56</option>
+            <option value="+51">🇵🇪 +51</option>
+            <option value="+58">🇻🇪 +58</option>
+          </select>
+          <input class="field-input" id="f-telefono" type="tel" placeholder="Solo números · Ej: 3012345678" maxlength="12" inputmode="numeric"/>
+        </div>
+        <div class="field-hint">Solo dígitos, entre 7 y 12 números (sin prefijo internacional)</div>
+        <div class="field-error" id="e-telefono">Número inválido · Solo dígitos, 7–12 números</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 2: TIPO DE PROBLEMA ══ -->
+    <div class="form-card" id="sec2">
+      <div class="card-header">
+        <div class="card-icon">🚨</div>
+        <div class="card-header-text">
+          <h3>Tipo y descripción del daño</h3>
+          <p>Selecciona la categoría y describe el problema con detalle</p>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Tipo de daño <span class="req">*</span></div>
+        <div class="type-grid" id="type-grid">
+          <div class="type-card" data-type="bache"><div class="tc-icon">🕳️</div><div class="tc-label">Bache / Hueco</div></div>
+          <div class="type-card" data-type="luminaria"><div class="tc-icon">💡</div><div class="tc-label">Luminaria quemada</div></div>
+          <div class="type-card" data-type="semaforo"><div class="tc-icon">🚦</div><div class="tc-label">Semáforo dañado</div></div>
+          <div class="type-card" data-type="agua"><div class="tc-icon">💧</div><div class="tc-label">Fuga de agua</div></div>
+          <div class="type-card" data-type="basura"><div class="tc-icon">🗑️</div><div class="tc-label">Basura acumulada</div></div>
+          <div class="type-card" data-type="alcantarilla"><div class="tc-icon">🌀</div><div class="tc-label">Alcantarilla abierta</div></div>
+          <div class="type-card" data-type="arbol"><div class="tc-icon">🌳</div><div class="tc-label">Árbol caído</div></div>
+          <div class="type-card" data-type="otro"><div class="tc-icon">⚙️</div><div class="tc-label">Otro daño</div></div>
+        </div>
+        <div class="field-error" id="e-tipo">Selecciona el tipo de daño</div>
+      </div>
+
+      <div class="field-group" id="otro-group" style="display:none">
+        <div class="field-label">Describe el tipo de daño <span class="req">*</span></div>
+        <input class="field-input" id="f-otro" type="text" placeholder="Ej: Poste de electricidad caído" maxlength="80"/>
+        <div class="field-error" id="e-otro">Describe el tipo de daño (mínimo 3 caracteres)</div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Descripción detallada <span class="req">*</span></div>
+        <textarea class="field-textarea" id="f-descripcion" placeholder="Ej: Hay un bache de aproximadamente 1 metro de diámetro en la vía principal. Ya ocasionó un accidente con moto esta mañana. Es zona escolar, muy peligroso..." maxlength="500"></textarea>
+        <div class="char-count" id="char-count">0 / 500 caracteres</div>
+        <div class="field-error" id="e-descripcion">La descripción debe tener al menos 15 caracteres</div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Nivel de urgencia <span class="req">*</span></div>
+        <div class="prio-row" id="prio-row">
+          <button type="button" class="prio-btn" data-p="baja">
+            <span class="pb-icon">🟢</span>Baja<br/><small style="font-weight:400;font-size:.7rem;opacity:.7">Puede esperar</small>
+          </button>
+          <button type="button" class="prio-btn" data-p="moderada">
+            <span class="pb-icon">🟡</span>Moderada<br/><small style="font-weight:400;font-size:.7rem;opacity:.7">Atender pronto</small>
+          </button>
+          <button type="button" class="prio-btn" data-p="critica">
+            <span class="pb-icon">🔴</span>Crítica<br/><small style="font-weight:400;font-size:.7rem;opacity:.7">¡Urgente!</small>
+          </button>
+        </div>
+        <div class="field-error" id="e-prioridad">Selecciona el nivel de urgencia</div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 3: EVIDENCIA ══ -->
+    <div class="form-card" id="sec3">
+      <div class="card-header">
+        <div class="card-icon">📷</div>
+        <div class="card-header-text">
+          <h3>Evidencia fotográfica o documental</h3>
+          <p>Sube una imagen o PDF del daño (máximo 5 MB)</p>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <span class="ib-icon">💡</span>
+        <span>La foto permite que la IA verifique automáticamente el tipo de daño y agilice el despacho de cuadrillas. Una buena foto acelera la solución.</span>
+      </div>
+
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="f-archivo" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"/>
+        <div class="uz-icon">📁</div>
+        <div class="uz-title">Arrastra tu archivo aquí o haz clic para seleccionar</div>
+        <div class="uz-sub">Imagen o PDF del daño · Máximo 5 MB</div>
+        <div class="uz-types">
+          <span class="uz-tag">JPG</span>
+          <span class="uz-tag">PNG</span>
+          <span class="uz-tag">WEBP</span>
+          <span class="uz-tag">HEIC</span>
+          <span class="uz-tag">PDF</span>
+        </div>
+      </div>
+      <div class="field-error" id="e-archivo">Debes adjuntar una imagen o PDF del daño</div>
+
+      <div class="file-preview" id="file-preview">
+        <img id="preview-img" src="" alt="Vista previa" style="display:none"/>
+        <div class="pdf-preview" id="pdf-prev" style="display:none">
+          <span class="pdf-icon">📄</span>
+          <div>
+            <div class="pdf-name" id="pdf-name">archivo.pdf</div>
+            <div class="pdf-size" id="pdf-size">0 KB</div>
+          </div>
+        </div>
+        <button type="button" class="remove-file" onclick="removeFile()">✕ Quitar</button>
+        <div style="font-size:.72rem;color:var(--muted2);margin-top:6px;text-align:center" id="file-info-text"></div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 4: UBICACIÓN ══ -->
+    <div class="form-card" id="sec4">
+      <div class="card-header">
+        <div class="card-icon">📍</div>
+        <div class="card-header-text">
+          <h3>Ubicación del daño</h3>
+          <p>Usa el botón GPS para detectar todo automáticamente</p>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <span class="ib-icon">📡</span>
+        <span>Presiona el botón GPS y llenamos la dirección, barrio y coordenadas por ti. Si prefieres, también puedes escribirlos manualmente.</span>
+      </div>
+
+      <button type="button" class="geo-btn" id="geo-btn" onclick="getGPS()">
+        <div class="geo-spin" id="geo-spin"></div>
+        <span id="geo-text">📡 Detectar mi ubicación automáticamente</span>
+      </button>
+
+      <div class="field-group">
+        <div class="field-label">Barrio <span class="req">*</span></div>
+        <input class="field-input" id="f-barrio" type="text" placeholder="Ej: La Flora, El Prado, Centro" maxlength="80"/>
+        <div class="field-error" id="e-barrio">Escribe el nombre del barrio</div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Dirección o punto de referencia <span class="req">*</span></div>
+        <input class="field-input" id="f-direccion" type="text" placeholder="Ej: Cra 27 con Calle 45, frente al parque, cerca del colegio San Juan" maxlength="150"/>
+        <div class="field-hint">No necesitas la dirección exacta — describe dónde está: cerca de qué, qué hay alrededor.</div>
+        <div class="field-error" id="e-direccion">Escribe una referencia de ubicación (mínimo 5 caracteres)</div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field-group">
+          <div class="field-label">
+            Latitud <span class="req">*</span>
+            <span class="optional">Se llena con el GPS 👆</span>
+          </div>
+          <input class="field-input" id="f-lat" type="text" placeholder="Ej: 7.119300" inputmode="decimal" readonly style="opacity:.7;cursor:not-allowed"/>
+          <div class="field-hint">Se completa automáticamente al usar el GPS</div>
+          <div class="field-error" id="e-lat">Usa el botón GPS para obtener las coordenadas</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">
+            Longitud <span class="req">*</span>
+            <span class="optional">Se llena con el GPS 👆</span>
+          </div>
+          <input class="field-input" id="f-lng" type="text" placeholder="Ej: -73.122700" inputmode="decimal" readonly style="opacity:.7;cursor:not-allowed"/>
+          <div class="field-hint">Se completa automáticamente al usar el GPS</div>
+          <div class="field-error" id="e-lng">Usa el botón GPS para obtener las coordenadas</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN 5: TÉRMINOS Y ENVÍO ══ -->
+    <div class="form-card">
+      <div class="field-group">
+        <div class="terms-row">
+          <input type="checkbox" id="f-terminos"/>
+          <label for="f-terminos">
+            Acepto que los datos de este reporte sean utilizados para la gestión del incidente urbano reportado. 
+            Entiendo que la información puede ser compartida con las entidades municipales encargadas de la reparación. 
+            He leído la <a href="#">política de privacidad</a> y autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012.
+          </label>
+        </div>
+        <div class="field-error" id="e-terminos" style="margin-top:10px">Debes aceptar los términos y la política de privacidad</div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submit-btn">
+        🚀 Enviar reporte al sistema
+      </button>
+
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+
+      <p style="font-size:.73rem;color:var(--muted2);text-align:center;margin-top:12px">
+        Al enviar, recibirás un Ticket ID único para hacer seguimiento de tu reporte.
+      </p>
+    </div>
+
+  </form>
+</div>
+
+<!-- ══════════════ BOT TELEGRAM ══════════════ -->
+<div id="bot">
+  <div class="section-label">Canal ciudadano</div>
+  <div class="section-title">Bot de Telegram · SmartCity-Fix</div>
+
+  <div class="bot-grid">
+    <div class="bot-card">
+      <div class="bot-card-title">✈️ ¿Cómo usar el bot?</div>
+      <p>El bot de Telegram te permite consultar el estado de tu reporte, recibir notificaciones automáticas y enviar nuevos reportes directamente desde la app.</p>
+      <div class="command-list">
+        <div class="cmd-item">
+          <div class="cmd-code">/start</div>
+          <div class="cmd-desc">Inicia el bot y muestra el menú de opciones disponibles</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-code">/consultar</div>
+          <div class="cmd-desc">Consulta el estado de tu reporte ingresando el Ticket ID (ej: SCF-ABC123)</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-code">/estado [ID]</div>
+          <div class="cmd-desc">Muestra el estado actual: En Asignación, En Proceso o Solucionado</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-code">/reporte</div>
+          <div class="cmd-desc">Inicia un nuevo reporte rápido directamente desde Telegram</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-code">/ayuda</div>
+          <div class="cmd-desc">Muestra todos los comandos disponibles y cómo usarlos</div>
+        </div>
+      </div>
+      <br/>
+      <a href="https://t.me/UrbanFix_Bot" target="_blank" class="tg-link-btn">
+        ✈️ Abrir @UrbanFix_Bot en Telegram
+      </a>
+    </div>
+
+    <div class="bot-card">
+      <div class="bot-card-title">🎯 Sistema de prioridades</div>
+      <p>La IA evalúa el nivel de confianza y la severidad del daño para determinar el enrutamiento automático de cada reporte:</p>
+      <div class="badge-row">
+        <div class="badge-item" style="border-color:rgba(244,63,94,.3);background:rgba(244,63,94,.05)">
+          <div class="badge-dot" style="background:var(--red)"></div>
+          <div>
+            <h5>🔴 Crítica · Despacho inmediato</h5>
+            <p>Alta confianza + severidad crítica → Notificación directa a bomberos, empresa de gas o entidad de emergencia</p>
+          </div>
+        </div>
+        <div class="badge-item" style="border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.05)">
+          <div class="badge-dot" style="background:var(--amber)"></div>
+          <div>
+            <h5>🟡 Moderada · Revisión supervisores</h5>
+            <p>Confianza media o severidad moderada → Alerta al panel de supervisores de la alcaldía para validación y asignación de cuadrilla</p>
+          </div>
+        </div>
+        <div class="badge-item" style="border-color:rgba(14,165,233,.3);background:rgba(14,165,233,.05)">
+          <div class="badge-dot" style="background:var(--blue)"></div>
+          <div>
+            <h5>🔵 Baja · En cola normal</h5>
+            <p>Prioridad baja → Ticket registrado en cola estándar para atención programada</p>
+          </div>
+        </div>
+        <div class="badge-item" style="border-color:rgba(255,255,255,.08)">
+          <div class="badge-dot" style="background:var(--muted)"></div>
+          <div>
+            <h5>⚠️ Sospecha de spam</h5>
+            <p>Baja confianza del modelo → Bloqueo preventivo y solicitud de evidencia adicional al ciudadano</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ FOOTER ══════════════ -->
+<footer>
+  Hecho con 💚 para ciudades más seguras · <strong>SmartCity-Fix</strong> v1.0 Beta ·
+  Sistema IA de diagnóstico y enrutamiento · CampusLands 2026
+</footer>
+
+<!-- ══════════════ TOAST ══════════════ -->
+<div id="toast">
+  <span class="toast-icon" id="t-icon">✅</span>
+  <div>
+    <div class="toast-title" id="t-title">Listo</div>
+    <div class="toast-msg" id="t-msg"></div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   CONFIG · Cambia esta URL por la de tu webhook n8n
+══════════════════════════════════════════════ */
+const N8N_WEBHOOK = 'https://satarex.app.n8n.cloud/webhook/smartcityfix';
+const TELEGRAM_BOT = 'https://t.me/UrbanFix_Bot';
+
+/* ══════════════════════════════════════════════
+   ESTADO GLOBAL
+══════════════════════════════════════════════ */
+let tipoSeleccionado = '';
+let prioridad = '';
+let archivo = null;
+
+/* ══════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const qAll = sel => document.querySelectorAll(sel);
+
+function showToast(type, title, msg) {
+  const t = $('toast');
+  $('t-icon').textContent = type === 'success' ? '✅' : '❌';
+  $('t-title').textContent = title;
+  $('t-msg').textContent = msg;
+  t.className = 'show ' + type;
+  setTimeout(() => { t.className = ''; }, 4500);
+}
+
+function showErr(id, show) {
+  const el = $(id);
+  if (!el) return;
+  el.classList.toggle('show', show);
+}
+
+function markInput(id, ok) {
+  const el = $(id);
+  if (!el) return;
+  el.classList.toggle('valid', ok);
+  el.classList.toggle('invalid', !ok);
+}
+
+/* ══════════════════════════════════════════════
+   VALIDADORES
+══════════════════════════════════════════════ */
+const V = {
+  nombre:   v => v.trim().length >= 2,
+  apellido: v => v.trim().length >= 2,
+  cedula:   v => /^\d{5,15}$/.test(v.trim()),
+  correo:   v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()),
+  telefono: v => /^\d{7,12}$/.test(v.trim()),
+  desc:     v => v.trim().length >= 15,
+  dir:      v => v.trim().length >= 5,
+  latLng:   v => !isNaN(parseFloat(v)) && isFinite(parseFloat(v)),
+};
+
+/* ── realtime blur validations ── */
+[
+  ['f-nombre',    'nombre',   'e-nombre'],
+  ['f-apellido',  'apellido', 'e-apellido'],
+  ['f-cedula',    'cedula',   'e-cedula'],
+  ['f-correo',    'correo',   'e-correo'],
+  ['f-telefono',  'telefono', 'e-telefono'],
+  ['f-descripcion','desc',    'e-descripcion'],
+  ['f-direccion', 'dir',      'e-direccion'],
+].forEach(([fId, vKey, eId]) => {
+  $(fId)?.addEventListener('blur', () => {
+    const ok = V[vKey]($(fId).value);
+    markInput(fId, ok);
+    showErr(eId, !ok);
+  });
+});
+
+/* barrio blur */
+$('f-barrio')?.addEventListener('blur', () => {
+  const ok = $('f-barrio').value.trim().length >= 2;
+  markInput('f-barrio', ok);
+  showErr('e-barrio', !ok);
+});
+
+/* ── solo números en cédula y teléfono ── */
+['f-cedula', 'f-telefono'].forEach(id => {
+  $(id)?.addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '');
+  });
+});
+
+/* ── contador de caracteres ── */
+$('f-descripcion')?.addEventListener('input', function() {
+  const n = this.value.length;
+  const cc = $('char-count');
+  cc.textContent = n + ' / 500 caracteres';
+  cc.className = 'char-count' + (n > 450 ? ' limit' : n > 350 ? ' warn' : '');
+});
+
+/* ══════════════════════════════════════════════
+   TIPO DE DAÑO
+══════════════════════════════════════════════ */
+qAll('.type-card').forEach(card => {
+  card.addEventListener('click', () => {
+    qAll('.type-card').forEach(c => c.classList.remove('sel'));
+    card.classList.add('sel');
+    tipoSeleccionado = card.dataset.type;
+    showErr('e-tipo', false);
+    $('otro-group').style.display = tipoSeleccionado === 'otro' ? 'block' : 'none';
+  });
+});
+
+/* ══════════════════════════════════════════════
+   PRIORIDAD
+══════════════════════════════════════════════ */
+qAll('.prio-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    qAll('.prio-btn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+    prioridad = btn.dataset.p;
+    showErr('e-prioridad', false);
+  });
+});
+
+/* ══════════════════════════════════════════════
+   ARCHIVO (IMAGEN O PDF)
+══════════════════════════════════════════════ */
+const MAX_SIZE = 5 * 1024 * 1024;
+const ALLOWED = ['image/jpeg','image/png','image/webp','image/heic','application/pdf'];
+
+$('f-archivo')?.addEventListener('change', function() { handleFile(this.files[0]); });
+
+const zone = $('upload-zone');
+['dragover','dragenter'].forEach(e => zone?.addEventListener(e, ev => { ev.preventDefault(); zone.classList.add('drag'); }));
+['dragleave','drop'].forEach(e => zone?.addEventListener(e, () => zone.classList.remove('drag')));
+zone?.addEventListener('drop', ev => { ev.preventDefault(); handleFile(ev.dataTransfer.files[0]); });
+
+function handleFile(file) {
+  if (!file) return;
+
+  const ext = file.name.toLowerCase();
+  const validType = ALLOWED.includes(file.type) || ext.endsWith('.heic');
+  if (!validType) {
+    showToast('error', 'Formato no válido', 'Solo se permiten: JPG, PNG, WEBP, HEIC o PDF.');
+    return;
+  }
+  if (file.size > MAX_SIZE) {
+    showToast('error', 'Archivo muy grande', 'El archivo supera los 5 MB. Comprime la imagen e intenta de nuevo.');
+    return;
+  }
+
+  archivo = file;
+  showErr('e-archivo', false);
+  zone.classList.remove('invalid');
+
+  const prevWrap = $('file-preview');
+  prevWrap.style.display = 'block';
+  $('preview-img').style.display = 'none';
+  $('pdf-prev').style.display = 'none';
+
+  const kb = (file.size / 1024).toFixed(1);
+  $('file-info-text').textContent = `📎 ${file.name} · ${kb} KB`;
+
+  if (file.type === 'application/pdf') {
+    $('pdf-name').textContent = file.name;
+    $('pdf-size').textContent = kb + ' KB';
+    $('pdf-prev').style.display = 'flex';
+  } else {
+    const reader = new FileReader();
+    reader.onload = e => {
+      $('preview-img').src = e.target.result;
+      $('preview-img').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function removeFile() {
+  archivo = null;
+  $('f-archivo').value = '';
+  $('preview-img').src = '';
+  $('preview-img').style.display = 'none';
+  $('pdf-prev').style.display = 'none';
+  $('file-preview').style.display = 'none';
+  $('file-info-text').textContent = '';
+}
+
+/* ══════════════════════════════════════════════
+   GEOLOCALIZACIÓN
+══════════════════════════════════════════════ */
+function getGPS() {
+  if (!navigator.geolocation) {
+    showToast('error', 'GPS no disponible', 'Tu navegador no soporta geolocalización.');
+    return;
+  }
+  const btn = $('geo-btn');
+  const spin = $('geo-spin');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  spin.style.display = 'block';
+  $('geo-text').textContent = 'Detectando ubicación...';
+
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      window._gpsLat = lat.toFixed(6);
+      window._gpsLng = lng.toFixed(6);
+
+      // Mostrar coordenadas en los campos
+      $('f-lat').value = window._gpsLat;
+      $('f-lng').value = window._gpsLng;
+      markInput('f-lat', true); markInput('f-lng', true);
+      showErr('e-lat', false); showErr('e-lng', false);
+
+      // Geocodificación inversa con Nominatim
+      try {
+        const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=es`);
+        const data = await resp.json();
+        const addr = data.address || {};
+        const barrio = addr.suburb || addr.neighbourhood || addr.quarter || addr.city_district || '';
+        const calle  = addr.road || addr.pedestrian || '';
+        const numero = addr.house_number || '';
+        const ciudad = addr.city || addr.town || addr.municipality || '';
+        if (barrio) $('f-barrio').value = barrio;
+        if (calle)  $('f-direccion').value = (calle + (numero ? ' #' + numero : '') + (ciudad ? ', ' + ciudad : '')).trim();
+        markInput('f-barrio', barrio.length >= 2);
+        markInput('f-direccion', $('f-direccion').value.length >= 5);
+        showErr('e-barrio', false); showErr('e-direccion', false);
+        showToast('success', '📍 Ubicación detectada', 'Barrio, dirección y coordenadas completados.');
+      } catch {
+        showToast('success', '📍 Coordenadas obtenidas', `Lat: ${window._gpsLat} · Lng: ${window._gpsLng}`);
+      }
+      btn.classList.remove('loading');
+      btn.disabled = false;
+      spin.style.display = 'none';
+      $('geo-text').textContent = '✅ Ubicación detectada';
+    },
+    () => {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+      spin.style.display = 'none';
+      $('geo-text').textContent = '📡 Detectar mi ubicación automáticamente';
+      showToast('error', 'No se pudo obtener ubicación', 'Habilita el GPS en tu navegador e intenta de nuevo.');
+    },
+    { timeout: 10000 }
+  );
+}
+
+/* ══════════════════════════════════════════════
+   PROGRESS STEPS (scroll)
+══════════════════════════════════════════════ */
+function updateSteps() {
+  const secs = [[1,'ps1'],[2,'ps2'],[3,'ps3'],[4,'ps4']];
+  let active = 1;
+  secs.forEach(([n]) => {
+    const el = $('sec'+n);
+    if (el && el.getBoundingClientRect().top < window.innerHeight * .55) active = n;
+  });
+  secs.forEach(([n, psId]) => {
+    const ps = $(psId);
+    ps.classList.toggle('active', n === active);
+    ps.classList.toggle('done', n < active);
+  });
+}
+window.addEventListener('scroll', updateSteps, { passive: true });
+
+/* ══════════════════════════════════════════════
+   VALIDACIÓN COMPLETA
+══════════════════════════════════════════════ */
+function validateAll() {
+  let ok = true;
+  const fields = [
+    ['f-nombre',    'nombre',   'e-nombre'],
+    ['f-apellido',  'apellido', 'e-apellido'],
+    ['f-cedula',    'cedula',   'e-cedula'],
+    ['f-correo',    'correo',   'e-correo'],
+    ['f-telefono',  'telefono', 'e-telefono'],
+    ['f-descripcion','desc',   'e-descripcion'],
+    ['f-barrio',    'dir',     'e-barrio'],
+    ['f-direccion', 'dir',     'e-direccion'],
+  ];
+  fields.forEach(([fId, vKey, eId]) => {
+    const isOk = V[vKey]($(fId).value);
+    markInput(fId, isOk);
+    showErr(eId, !isOk);
+    if (!isOk) ok = false;
+  });
+  // lat/lng (se llenan con GPS)
+  const latOk = window._gpsLat && window._gpsLat.length > 0;
+  const lngOk = window._gpsLng && window._gpsLng.length > 0;
+  markInput('f-lat', latOk); showErr('e-lat', !latOk);
+  markInput('f-lng', lngOk); showErr('e-lng', !lngOk);
+  if (!latOk || !lngOk) ok = false;
+
+  // tipo
+  if (!tipoSeleccionado) { showErr('e-tipo', true); ok = false; }
+  if (tipoSeleccionado === 'otro' && $('f-otro').value.trim().length < 3) {
+    markInput('f-otro', false); showErr('e-otro', true); ok = false;
+  }
+  // prioridad
+  if (!prioridad) { showErr('e-prioridad', true); ok = false; }
+  // archivo
+  if (!archivo) { showErr('e-archivo', true); zone.classList.add('invalid'); ok = false; }
+  // términos
+  if (!$('f-terminos').checked) { showErr('e-terminos', true); ok = false; }
+  else showErr('e-terminos', false);
+
+  return ok;
+}
+
+/* ══════════════════════════════════════════════
+   ENVÍO DEL FORMULARIO
+══════════════════════════════════════════════ */
+$('reportForm')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!validateAll()) {
+    const firstErr = document.querySelector('.field-error.show');
+    if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast('error', 'Campos incompletos', 'Revisa los campos marcados en rojo.');
+    return;
+  }
+
+  const btn = $('submit-btn');
+  const pw = $('progress-wrap');
+  const pf = $('progress-fill');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Enviando reporte...';
+  pw.style.display = 'block';
+
+  let pct = 0;
+  const tick = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 12, 85);
+    pf.style.width = pct + '%';
+  }, 300);
+
+  try {
+    const fd = new FormData();
+    fd.append('nombre',       $('f-nombre').value.trim());
+    fd.append('apellido',     $('f-apellido').value.trim());
+    fd.append('cedula',       $('f-cedula').value.trim());
+    fd.append('correo',       $('f-correo').value.trim());
+    fd.append('telefono',     $('f-prefijo').value + $('f-telefono').value.trim());
+    fd.append('tipo_dano',    tipoSeleccionado === 'otro' ? $('f-otro').value.trim() : tipoSeleccionado);
+    fd.append('descripcion',  $('f-descripcion').value.trim());
+    fd.append('prioridad_ciudadano', prioridad);
+    fd.append('barrio',       $('f-barrio').value.trim());
+    fd.append('direccion',    $('f-direccion').value.trim());
+    fd.append('latitud',      window._gpsLat || '');
+    fd.append('longitud',     window._gpsLng || '');
+    fd.append('archivo',      archivo, archivo.name);
+    fd.append('tipo_archivo', archivo.type);
+    fd.append('fecha_reporte', new Date().toISOString());
+
+    const res = await fetch(N8N_WEBHOOK, { method: 'POST', body: fd });
+
+    clearInterval(tick);
+    pf.style.width = '100%';
+
+    if (res.ok) {
+      const ticketId = 'SCF-' + Date.now().toString(36).toUpperCase();
+      $('ticket-display').textContent = ticketId;
+      setTimeout(() => {
+        $('reportForm').style.display = 'none';
+        $('success-panel').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 400);
+    } else {
+      throw new Error('HTTP ' + res.status);
+    }
+  } catch (err) {
+    clearInterval(tick);
+    pf.style.width = '0';
+    pw.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '🚀 Enviar reporte al sistema';
+    showToast('error', 'Error de conexión', 'No se pudo conectar al servidor. Revisa tu internet e intenta de nuevo.');
+    console.error(err);
+  }
+});
+
+/* ══════════════════════════════════════════════
+   COPIAR TICKET
+══════════════════════════════════════════════ */
+function copyTicket() {
+  const txt = $('ticket-display').textContent;
+  navigator.clipboard.writeText(txt).then(() => {
+    showToast('success', '¡Copiado!', 'Ticket ID guardado en el portapapeles');
+  });
+}
+
+/* ══════════════════════════════════════════════
+   RESET
+══════════════════════════════════════════════ */
+function resetForm() {
+  $('reportForm').reset();
+  $('reportForm').style.display = '';
+  $('success-panel').style.display = 'none';
+  removeFile();
+  tipoSeleccionado = ''; prioridad = '';
+  qAll('.type-card').forEach(c => c.classList.remove('sel'));
+  qAll('.prio-btn').forEach(b => b.classList.remove('sel'));
+  qAll('.field-error').forEach(e => { e.classList.remove('show'); });
+  qAll('.field-input, .field-textarea').forEach(i => i.classList.remove('valid','invalid'));
+  $('char-count').textContent = '0 / 500 caracteres';
+  $('geo-text').textContent = '📡 Detectar mi ubicación automáticamente';
+  window._gpsLat = ''; window._gpsLng = '';
+  $('f-lat').value = ''; $('f-lng').value = '';
+  $('geo-btn').disabled = false;
+  $('geo-btn').classList.remove('loading');
+  $('progress-fill').style.width = '0';
+  $('progress-wrap').style.display = 'none';
+  $('submit-btn').disabled = false;
+  $('submit-btn').textContent = '🚀 Enviar reporte al sistema';
+  $('otro-group').style.display = 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
