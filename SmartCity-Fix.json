@@ -1,0 +1,1103 @@
+{
+  "name": "SmartCity-Fix",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smartcityfix",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "d17b9d90-92d1-4d97-9e5d-3421f9ed05e1",
+      "name": "🌐 Webhook · Recepción del Reporte",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -2048,
+        320
+      ],
+      "webhookId": "smartcityfix-main"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// NODO: Extracción y limpieza de datos (CORREGIDO)\n// ═══════════════════════════════════════════════════════════════\nconst body = $input.first().json.body\n          || $input.first().json\n          || {};\n\n// Extraer los sub-objetos del formulario\nconst ciudadano = body.ciudadano || {};\nconst reporte   = body.reporte   || {};\nconst ubicacion = body.ubicacion || {};\nconst evidencia = body.evidencia || {};\n\n// Generar Ticket ID único\nconst ticketId = 'SCF-' + Date.now().toString(36).toUpperCase();\n\n// Timestamp legible\nconst ahora = new Date();\nconst fechaFormateada = ahora.toLocaleDateString('es-CO', {\n  year: 'numeric', month: '2-digit', day: '2-digit',\n  hour: '2-digit', minute: '2-digit'\n});\n\n// Datos del archivo desde base64\nconst tieneArchivo = !!(evidencia.archivo_base64);\nconst esImagen     = tieneArchivo && (evidencia.archivo_tipo || '').startsWith('image/');\nconst esPDF        = tieneArchivo && evidencia.archivo_tipo === 'application/pdf';\n\nreturn [{\n  json: {\n    ticket_id:        ticketId,\n    fecha_reporte:    ahora.toISOString(),\n    fecha_formateada: fechaFormateada,\n\n    // Datos del ciudadano\n    nombre:           (ciudadano.nombre   || '').trim(),\n    apellido:         (ciudadano.apellido || '').trim(),\n    nombre_completo:  `${(ciudadano.nombre || '').trim()} ${(ciudadano.apellido || '').trim()}`.trim() || 'Ciudadano Anónimo',\n    cedula:           (ciudadano.cedula   || '').trim(),\n    correo:           (ciudadano.correo   || '').trim(),\n    telefono:         (ciudadano.telefono || '').trim(),\n\n    // Datos del reporte\n    tipo_dano:           (reporte.tipo              || '').trim(),\n    descripcion:         (reporte.descripcion        || '').trim(),\n    prioridad_ciudadano: (reporte.prioridad_sugerida || 'baja').trim(),\n    direccion:           (reporte.direccion_aproximada || '').trim(),\n\n    // Coordenadas\n    latitud:         parseFloat(ubicacion.latitud)  || 0,\n    longitud:        parseFloat(ubicacion.longitud) || 0,\n    coordenadas:     `${parseFloat(ubicacion.latitud) || 0},${parseFloat(ubicacion.longitud) || 0}`,\n    google_maps_url: `https://www.google.com/maps/search/?api=1&query=${parseFloat(ubicacion.latitud) || 0},${parseFloat(ubicacion.longitud) || 0}`,\n\n    // Archivo\n    tiene_archivo:  tieneArchivo,\n    es_imagen:      esImagen,\n    es_pdf:         esPDF,\n    tipo_archivo:   evidencia.archivo_tipo   || 'ninguno',\n    archivo_nombre: evidencia.archivo_nombre || '',\n    archivo_base64: evidencia.archivo_base64 || '',\n\n    estado_inicial: 'En Asignación'\n  }\n}];"
+      },
+      "id": "089101b8-5dbf-490b-b064-0bd23c4449d4",
+      "name": "⚙️ Extracción y Limpieza de Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1856,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "groqApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"max_tokens\": 800,\n  \"temperature\": 0.2,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Eres un sistema experto en clasificación de daños en infraestructura urbana. SIEMPRE responde ÚNICAMENTE con un objeto JSON válido con exactamente estos campos: {\\\"es_dano_real\\\": boolean, \\\"categoria_ia\\\": string, \\\"prioridad_ia\\\": \\\"critica\\\" | \\\"moderada\\\" | \\\"baja\\\", \\\"score_severidad\\\": number, \\\"confianza\\\": number, \\\"palabras_peligro\\\": array, \\\"diagnostico\\\": string, \\\"accion_recomendada\\\": string, \\\"entidad_destino\\\": string}.\"\n    },\n    {\n  \"role\": \"user\",\n  \"content\": \"={{ 'Analiza: Tipo de daño: ' + $('⚙️ Extracción y Limpieza de Datos').item.json.tipo_dano + '. Descripción: ' + $('⚙️ Extracción y Limpieza de Datos').item.json.descripcion + '. Prioridad: ' + $('⚙️ Extracción y Limpieza de Datos').item.json.prioridad_ciudadano }}\"\n}\n  ]\n}",
+        "options": {}
+      },
+      "id": "d2e68a4e-4ad1-472f-b774-5056aded94bf",
+      "name": "🧠 IA · Análisis NLP (Texto + Contexto)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1088,
+        400
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "S2JIV6MS2pUpQ9Fe",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parseo y Enriquecimiento IA\n// Tomamos directamente la información del flujo que entra a este nodo\nconst respuestaIA = $json;\n\nlet analisisIA = {};\ntry {\n  // Extraemos el contenido que viene de Groq en la entrada inmediata\n  const contenido = respuestaIA.choices?.[0]?.message?.content || '{}';\n  \n  // Limpiamos los bloques de código markdown por si la IA los puso (```json ... ```)\n  const limpio = contenido.replace(/```json|```/g, '').trim();\n  \n  // Convertimos el texto en un JSON real con sus variables\n  analisisIA = JSON.parse(limpio);\n} catch(e) {\n  // Plan de contingencia SOLO si el JSON de la IA viene verdaderamente roto\n  analisisIA = {\n    es_dano_real: true,\n    categoria_ia: 'Daño Vial',\n    prioridad_ia: 'moderada',\n    score_severidad: 50,\n    confianza: 50,\n    palabras_peligro: [],\n    diagnostico: 'Error al procesar el formato de la IA. Se requiere revisión manual en la malla vial.',\n    accion_recomendada: 'Asignar inspección técnica física.',\n    entidad_destino: 'Supervisores Alcaldía'\n  };\n}\n\n// Determinar ruta de enrutamiento para tu Switch\nconst confianza = analisisIA.confianza || 50;\nconst prioridad = analisisIA.prioridad_ia || 'baja';\nconst esDanoReal = analisisIA.es_dano_real === true;\n\nlet rutamiento = '';\nif (!esDanoReal || confianza < 0.35) {\n  rutamiento = 'SPAM_SOSPECHOSO';\n} else if (prioridad === 'critica' && confianza >= 70) {\n  rutamiento = 'DESPACHO_INMEDIATO';\n} else if (prioridad === 'moderada' || (prioridad === 'critica' && confianza < 70)) {\n  rutamiento = 'REVISION_SUPERVISORES';\n} else {\n  rutamiento = 'COLA_NORMAL';\n}\n\n// Emojis de prioridad para Telegram\nconst emojiPrio = { critica: '🔴', moderada: '🟡', baja: '🟢' };\n\n// Retornamos los datos combinados e independientes\nreturn [{\n  json: {\n    ...$json, // Mantiene los datos que ya traías en la rama (nombre, teléfono, etc.)\n    es_dano_real: esDanoReal,\n    categoria_ia: analisisIA.categoria_ia || \"Bache\",\n    prioridad_ia: prioridad,\n    score_severidad: analisisIA.score_severidad || 50,\n    confianza_ia: confianza,\n    palabras_peligro: (analisisIA.palabras_peligro || []).join(', '),\n    diagnostico: analisisIA.diagnostico || 'Análisis técnico de malla vial completado.',\n    diagnostico_ia: analisisIA.diagnostico || 'Análisis técnico completado.',\n    accion_recomendada: analisisIA.accion_recomendada || 'Programar cuadrilla de bacheo.',\n    entidad_destino: analisisIA.entidad_destino || 'Cuadrilla Municipal',\n    \n    // Variables clave para tu Switch y Telegram\n    rutamiento: rutamiento,\n    emoji_prioridad: emojiPrio[prioridad] || '⚪',\n    estado: rutamiento === 'SPAM_SOSPECHOSO' ? 'Pendiente Verificación' : 'En Asignación'\n  }\n}];"
+      },
+      "id": "697b6e65-7627-46ef-8738-bd75829c3bbb",
+      "name": "📊 Parseo y Enriquecimiento IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "=7990015735",
+        "text": "=🚨 *ALERTA CRÍTICA · SmartCity-Fix*\n\n🎫 Ticket: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.ticket_id }}\n🏷️ Tipo: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.tipo_dano }}\n👤 Ciudadano: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.nombre_completo }}\n📞 {{ $('⚙️ Extracción y Limpieza de Datos').item.json.telefono }}\n✉️ {{ $('⚙️ Extracción y Limpieza de Datos').item.json.correo }}\n📍 Ubicación: {{ $('🗺️ Geocodificación OSM').item.json.display_name }}\n\n📋 Descripción: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.descripcion }}\n\n🧠 Diagnóstico IA: {{ $('📊 Parseo y Enriquecimiento IA').item.json.diagnostico_ia }}\n⚠️ _Prioridad:_ _{{ $('📊 Parseo y Enriquecimiento IA').item.json.prioridad_ia }}_\n\n⚡ Despacho inmediato requerido.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "5eb11ca7-eeb3-4923-b753-f20ea5fe1636",
+      "name": "✈️ Telegram · Alerta Emergencia",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -144,
+        272
+      ],
+      "webhookId": "f47046af-3e8a-40ac-af75-e538f2748674",
+      "credentials": {
+        "telegramApi": {
+          "id": "LmKcrbe0GmOTXyeA",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "=7990015735",
+        "text": "=🟡 *REVISIÓN REQUERIDA · SmartCity-Fix*\n\n🎫 Ticket: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.ticket_id }}\n🏷️ Tipo: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.tipo_dano }}\n👤 Ciudadano: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.nombre_completo }}\n📞 {{ $('⚙️ Extracción y Limpieza de Datos').item.json.telefono }}\n✉️ {{ $('⚙️ Extracción y Limpieza de Datos').item.json.correo }}\n📍 Ubicación: {{ $('🗺️ Geocodificación OSM').item.json.display_name }}\n\n📋 Descripción: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.descripcion }}\n\n🧠 Diagnóstico IA: {{ $('📊 Parseo y Enriquecimiento IA').item.json.diagnostico_ia }}\n⚠️ _Prioridad:_ _{{ $('📊 Parseo y Enriquecimiento IA').item.json.prioridad_ia }}_\n\nRevisar y asignar cuadrilla manualmente.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "43407812-7cfd-4102-be69-7a48b0d15c5c",
+      "name": "✈️ Telegram · Alerta Supervisores",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -144,
+        480
+      ],
+      "webhookId": "4c26cd82-6bea-46b7-bf33-93cfe6e50340",
+      "credentials": {
+        "telegramApi": {
+          "id": "LmKcrbe0GmOTXyeA",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "=7990015735",
+        "text": "=🟢 *COLA NORMAL · SmartCity-Fix*\n\n🎫 Ticket: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.ticket_id }}\n🏷️ Tipo: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.tipo_dano }}\n👤 Ciudadano: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.nombre_completo }}\n📞 {{ $('⚙️ Extracción y Limpieza de Datos').item.json.telefono }} \n✉️ {{ $('⚙️ Extracción y Limpieza de Datos').item.json.correo }}\n📍 Ubicación: {{ $('🗺️ Geocodificación OSM').item.json.display_name }}\n\n📋 Descripción: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.descripcion }}\n\n🧠 Diagnóstico IA: {{ $('📊 Parseo y Enriquecimiento IA').item.json.diagnostico_ia }}\n⚠️ _Prioridad:_ _{{ $('📊 Parseo y Enriquecimiento IA').item.json.prioridad_ia }}_\n\nAsignar cuadrilla según disponibilidad.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "163430b9-d554-4aa7-be07-5cca0829196c",
+      "name": "✈️ Telegram · Cola Normal",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -144,
+        688
+      ],
+      "webhookId": "c850253e-48e3-4239-a831-baa48e6140a9",
+      "credentials": {
+        "telegramApi": {
+          "id": "LmKcrbe0GmOTXyeA",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "7990015735",
+        "text": "=⚠️ *SOSPECHA SPAM · SmartCity-Fix*\n\n🎫 Ticket: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.ticket_id }}\n🏷️ Tipo: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.tipo_dano }}\n👤 Ciudadano: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.nombre_completo }}\n📞 {{ $('⚙️ Extracción y Limpieza de Datos').item.json.telefono }}\n✉️ {{ $('⚙️ Extracción y Limpieza de Datos').item.json.correo }}\n\n📋 Descripción: {{ $('⚙️ Extracción y Limpieza de Datos').item.json.descripcion }}\n\n🧠 Diagnóstico IA: {{ $('📊 Parseo y Enriquecimiento IA').item.json.diagnostico_ia }}\n📊 Confianza: {{ $('📊 Parseo y Enriquecimiento IA').item.json.confianza_ia }}\n\nSolicitar evidencia adicional al ciudadano.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "a456e69f-fc29-46ad-abc3-f8ceb8491531",
+      "name": "✈️ Telegram · Sospecha Spam",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -144,
+        48
+      ],
+      "webhookId": "c0c9c5f1-23b5-49a9-ae70-fb6e7973c4ad",
+      "credentials": {
+        "telegramApi": {
+          "id": "LmKcrbe0GmOTXyeA",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1DmKFWKAOrBtUbWeNkk3hh0b2ZQ4ajJ5eylZDJMgESdY",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Hoja 1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TicketID": "={{ $('⚙️ Extracción y Limpieza de Datos').item.json.ticket_id }}",
+            "Categoria": "={{ $('📊 Parseo y Enriquecimiento IA').item.json.categoria_ia }}",
+            "Telefono": "={{ $('🌐 Webhook · Recepción del Reporte').item.json.body.ciudadano.telefono }}",
+            "Nombre": "={{ $('⚙️ Extracción y Limpieza de Datos').item.json.nombre }}",
+            "Descripcion": "={{ $('⚙️ Extracción y Limpieza de Datos').item.json.descripcion }}",
+            "Direccion Real": "={{ $('🗺️ Geocodificación OSM').item.json.display_name }}",
+            "Longitud": "={{ $('🌐 Webhook · Recepción del Reporte').item.json.body.ubicacion.longitud }}",
+            "Latitud": "={{ $('🌐 Webhook · Recepción del Reporte').item.json.body.ubicacion.latitud }}",
+            "Confianza": "={{ $('📊 Parseo y Enriquecimiento IA').item.json.confianza_ia }}",
+            "Estado": "={{ $('📊 Parseo y Enriquecimiento IA').item.json.estado }}",
+            "Score Severidad": "={{ $('📊 Parseo y Enriquecimiento IA').item.json.score_severidad }}/100",
+            "Prioridad": "={{ $('📊 Parseo y Enriquecimiento IA').item.json.prioridad_ia }}",
+            "Foto URL": "={{ $('🌐 Webhook · Recepción del Reporte').item.json.body.evidencia.archivo_tipo }}"
+          },
+          "matchingColumns": [
+            "TicketID"
+          ],
+          "schema": [
+            {
+              "id": "TicketID",
+              "displayName": "TicketID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Nombre",
+              "displayName": "Nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Telefono",
+              "displayName": "Telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Categoria",
+              "displayName": "Categoria",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Descripcion",
+              "displayName": "Descripcion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Direccion Real",
+              "displayName": "Direccion Real",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Latitud",
+              "displayName": "Latitud",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Longitud",
+              "displayName": "Longitud",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Confianza",
+              "displayName": "Confianza",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Score Severidad",
+              "displayName": "Score Severidad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Estado",
+              "displayName": "Estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Prioridad",
+              "displayName": "Prioridad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Foto URL",
+              "displayName": "Foto URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "5de42b16-42b9-4748-a02e-a4ddf1d6550b",
+      "name": "📊 Google Sheets · Registrar Incidente",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        304,
+        512
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "s7N4nNYVXJk2tkLI",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "=7990015735",
+        "text": "=✅ *SmartCity-Fix · Reporte Recibido*\n\nHoli  {{ $('⚙️ Extracción y Limpieza de Datos').item.json.nombre }}, tu reporte fue registrado exitosamente.\n\n🎫 *Tu Ticket ID:* `{{ $('⚙️ Extracción y Limpieza de Datos').item.json.ticket_id }}`\n🏷️ *Daño reportado:* {{ $('⚙️ Extracción y Limpieza de Datos').item.json.descripcion }}\n⚠️ *Prioridad:* {{ $('⚙️ Extracción y Limpieza de Datos').item.json.prioridad_ciudadano }}\n📍 *Ubicación:* {{ $('🗺️ Geocodificación OSM').item.json.display_name }}\n\n🧠 *Diagnóstico IA:* {{ $('📊 Parseo y Enriquecimiento IA').item.json.diagnostico_ia }}\n\n📌 *¿Qué sigue?* El reporte ha sido asignado al equipo técnico correspondiente para su revisión.\n\nPuedes consultar el estado de tu reporte en cualquier momento:\n👉 Escribe /consultar {{ $json.TicketID }} en este bot\n\n🏙️ SmartCity-Fix · Ciudades más seguras para todos",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "cd841183-13ca-4771-ad04-223a1d02e603",
+      "name": "✈️ Telegram · Notificación al Ciudadano",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        544,
+        512
+      ],
+      "webhookId": "731a9f2c-a22b-46dc-8396-35c38b39cdb4",
+      "credentials": {
+        "telegramApi": {
+          "id": "LmKcrbe0GmOTXyeA",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=✅ *SmartCity-Fix · Reporte Recibido*\n\nHoli {{ $node[\"⚙️ Extracción y Limpieza de Datos\"].json[\"nombre\"] }}, tu reporte fue registrado exitosamente.\n\n🎫 *Tu Ticket ID:* `{{ $node[\"⚙️ Extracción y Limpieza de Datos\"].json[\"ticket_id\"] }}`\n🏷️ *Daño reportado:* {{ $node[\"⚙️ Extracción y Limpieza de Datos\"].json[\"tipo_dano\"] }}\n⚠️ *Prioridad:* {{ $('📊 Parseo y Enriquecimiento IA').item.json.prioridad_ia }}\n📍 *Ubicación:* {{ $node[\"⚙️ Extracción y Limpieza de Datos\"].json[\"direccion\"] }}\n\n🧠 *Diagnóstico IA:* {{ $('📊 Parseo y Enriquecimiento IA').item.json.diagnostico_ia }}\n\n📌 *¿Qué sigue?* El reporte ha sido asignado al equipo técnico correspondiente para su revisión.\n\nPuedes consultar el estado de tu reporte en cualquier momento:\n👉 Escribe /consultar {{ $node[\"⚙️ Extracción y Limpieza de Datos\"].json[\"ticket_id\"] }} en este bot\n\n🏙️ SmartCity-Fix · Ciudades más seguras para todos",
+        "options": {}
+      },
+      "id": "1c53f64a-5f50-4fc2-96ea-335e04c727f5",
+      "name": "✅ Respuesta HTTP al Formulario",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        784,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "bebe97b8-0981-459e-a262-ec3129372794",
+      "name": "🤖 Bot Telegram · Consultas Ciudadanos",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1696,
+        1312
+      ],
+      "webhookId": "smartcityfix-bot",
+      "credentials": {
+        "telegramApi": {
+          "id": "LmKcrbe0GmOTXyeA",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// NODO: Parseo de comandos del bot\n\nconst update = $input.first().json;\n\nif (update.message === undefined) {\n  return []; // ignora si no es un mensaje normal\n}\n\nconst msg = update.message || {};\nconst texto = (msg.text || '').trim();\nconst chatId = msg.chat?.id;\nconst nombreUsuario = msg.from?.first_name || 'Ciudadano';\n\n// Detectar comando y parámetros\nlet comando = '';\nlet parametro = '';\n\nif (texto.startsWith('/start')) {\n  comando = 'start';\n\n} else if (texto.startsWith('/consultar') || texto.startsWith('/estado')) {\n  comando = 'consultar';\n  const match = texto.match(/SCF-[A-Z0-9]+/i);\n  parametro = match ? match[0].toUpperCase() : '';\n\n} else if (texto.startsWith('/ayuda') || texto.startsWith('/help')) {\n  comando = 'ayuda';\n\n} else if (texto.startsWith('/reporte')) {\n  comando = 'reporte';\n\n} else {\n  // Si el usuario escribe directamente un ticket ID\n  const matchDirecto = texto.match(/SCF-[A-Z0-9]+/i);\n  if (matchDirecto) {\n    comando = 'consultar';\n    parametro = matchDirecto[0].toUpperCase();\n  } else {\n    comando = 'desconocido';\n  }\n}\n\nreturn [{\n  json: {\n    comando,\n    parametro,\n    chatId,\n    nombreUsuario,\n    mensajeOriginal: texto\n  }\n}];"
+      },
+      "id": "afccb974-dd7a-42e5-a3e8-217ea305446e",
+      "name": "⚙️ Parseo de Comandos Bot",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1472,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-consultar",
+              "leftValue": "={{ $json.comando }}",
+              "rightValue": "consultar",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c47a3c8a-5722-4a87-8bed-cce6b46cf558",
+      "name": "🔀 ¿Consultar Ticket?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1232,
+        1312
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1DmKFWKAOrBtUbWeNkk3hh0b2ZQ4ajJ5eylZDJMgESdY",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Hoja 1",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "TicketID",
+              "lookupValue": "={{ $json.parametro }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6244b0b0-d64b-4aeb-81da-5683d8fe9da5",
+      "name": "📊 Sheets · Buscar Ticket",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -992,
+        1216
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "BzJLgmn9CACZBr7k",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cmdData = $('⚙️ Parseo de Comandos Bot').first().json;\nconst filas = $input.all();\n\nif (!filas || filas.length === 0 || !filas[0].json['TicketID']) {\n  return [{ json: {\n    chatId: cmdData.chatId,\n    texto: `❌ *Ticket no encontrado*\\n\\nNo encontré el ticket \\`${cmdData.parametro}\\`.\\n\\nVerifica que el ID sea correcto (formato: SCF-XXXXXX) y vuelve a intentarlo.`\n  }}];\n}\n\nconst ticket = filas[0].json;\n\nconst estadoEmoji = {\n  'En Asignación': '🔄',\n  'En Proceso': '🔧',\n  'Solucionado': '✅',\n  'Pendiente Verificación': '⚠️'\n};\nconst emojiEstado = estadoEmoji[ticket['Estado']] || '🔄';\n\nconst prioemoji = {\n  'critica': '🔴',\n  'moderada': '🟡',\n  'baja': '🟢'\n};\nconst emojiPrio = prioemoji[(ticket['Prioridad'] || '').toLowerCase()] || '⚪';\n\nreturn [{ json: {\n  chatId: cmdData.chatId,\n  texto: `${emojiEstado} *Estado de tu Reporte*\\n\\n🎫 Ticket: \\`${ticket['TicketID']}\\`\\n${emojiEstado} *Estado:* ${ticket['Estado'] || 'Por asignar'}\\n${emojiPrio} *Prioridad:* ${ticket['Prioridad'] || 'Por definir'}\\n\\n🏷️ *Tipo:* ${ticket['Categoria'] || 'Sin categoría'}\\n📍 *Ubicación:* ${ticket['Direccion Real'] || 'No especificada'}\\n\\nPara más información, contacta a SmartCity-Fix.`\n}}];"
+      },
+      "id": "421be2b7-e211-4c4e-bbee-4332fbde64f7",
+      "name": "⚙️ Construir Respuesta Ticket",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "=7990015735",
+        "text": "={{ $json.texto }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "2e9ebbfc-7650-4037-9e10-82ca950427d8",
+      "name": "✈️ Telegram · Responder Consulta",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -496,
+        1216
+      ],
+      "webhookId": "b0a78d9a-6702-4af6-bf04-b3cc71492368",
+      "credentials": {
+        "telegramApi": {
+          "id": "LmKcrbe0GmOTXyeA",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "=🛠️ *SmartCity-Fix · Bot Ciudadano*\n\nHola {{ $json.nombreUsuario }}! Soy el asistente oficial del sistema de reportes de infraestructura urbana.\n\n*Comandos disponibles:*\n\n📋 /consultar SCF-XXXXXX — Consulta el estado de tu reporte\n📊 /estado SCF-XXXXXX — Muestra el estado actual\n📝 /reporte — Cómo enviar un nuevo reporte\n❓ /ayuda — Ver todos los comandos\n\n💡 *Tip:* También puedes escribir directamente tu Ticket ID (ej: SCF-ABC123) sin ningún comando.\n\n🌐 Formulario web: https://tu-sitio.com",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "5dbd64e0-e3f2-404b-b069-1c53890801f7",
+      "name": "✈️ Telegram · Menú Principal",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -976,
+        1456
+      ],
+      "webhookId": "145b9f2d-0147-42a1-805b-d8d18be3c13e",
+      "credentials": {
+        "telegramApi": {
+          "id": "LmKcrbe0GmOTXyeA",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.rutamiento }}",
+                    "rightValue": "SPAM_SOSPECHOSO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "283d4ac1-0847-43f8-ae77-8035e95f91e5"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "1641a8a1-e613-48f2-91c4-7955551b550b",
+                    "leftValue": "={{ $json.rutamiento }}",
+                    "rightValue": "DESPACHO_INMEDIATO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "85e56d49-c4bd-47b9-a09a-58a78e576e2f",
+                    "leftValue": "={{ $json.rutamiento }}",
+                    "rightValue": "REVISION_SUPERVISORES",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "71dc27b9-785c-4a31-9ae8-be282b2797a3",
+                    "leftValue": "={{ $json.rutamiento }}",
+                    "rightValue": "COLA_NORMAL",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -640,
+        368
+      ],
+      "id": "b2d99a34-e47d-47d4-9bbe-6ea0fc1be8e7",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "url": "https://nominatim.openstreetmap.org/reverse",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "format",
+              "value": "jsonv2"
+            },
+            {
+              "name": "lat",
+              "value": "={{ $json.latitud }}"
+            },
+            {
+              "name": "lon",
+              "value": "={{ $json.longitud }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "SmartCityFix/1.0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1696,
+        320
+      ],
+      "id": "2414197f-82fd-40b2-b3c9-f01be0f4ca97",
+      "name": "🗺️ Geocodificación OSM"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f2d05351-9eda-45d9-9535-1dec176db285",
+              "leftValue": "={{ $json.es_imagen }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1488,
+        368
+      ],
+      "id": "3453fa3d-feaf-40bb-8085-377f4d086b12",
+      "name": "tiene imagen?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "groqApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.2-11b-vision-preview\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"content\": \"Analiza la imagen adjunta. ¿Muestra un daño real en la infraestructura pública (baches, postes caídos, fugas de agua, grietas, semáforos rotos)? Responde estrictamente con este formato JSON: {\\\"es_dano_visual\\\": boolean, \\\"motivo\\\": \\\"string\\\"}. No agregues introducciones.\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"data:{{ $json.tipo_archivo }};base64,{{ $binary[$json.archivo_key].data }}\"\n          }\n        }\n      ]\n    }\n  ],\n  \"response_format\": { \"type\": \"json_object\" }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1376,
+        640
+      ],
+      "id": "f0413fef-3023-4091-8374-65fb4eabe6c3",
+      "name": "IA Filtro visual",
+      "credentials": {
+        "groqApi": {
+          "id": "S2JIV6MS2pUpQ9Fe",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "afae4f70-9e34-4748-b0ac-5b8f1a810eba",
+              "leftValue": "={{ JSON.parse($json.choices[0].message.content).es_dano_visual }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1232,
+        640
+      ],
+      "id": "4b187771-f2a7-4985-af01-ab83de609faf",
+      "name": "imagen valida?"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "🌐 Webhook · Recepción del Reporte": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Extracción y Limpieza de Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Extracción y Limpieza de Datos": {
+      "main": [
+        [
+          {
+            "node": "🗺️ Geocodificación OSM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 IA · Análisis NLP (Texto + Contexto)": {
+      "main": [
+        [
+          {
+            "node": "📊 Parseo y Enriquecimiento IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Parseo y Enriquecimiento IA": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✈️ Telegram · Alerta Emergencia": {
+      "main": [
+        [
+          {
+            "node": "📊 Google Sheets · Registrar Incidente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✈️ Telegram · Alerta Supervisores": {
+      "main": [
+        [
+          {
+            "node": "📊 Google Sheets · Registrar Incidente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✈️ Telegram · Cola Normal": {
+      "main": [
+        [
+          {
+            "node": "📊 Google Sheets · Registrar Incidente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✈️ Telegram · Sospecha Spam": {
+      "main": [
+        [
+          {
+            "node": "📊 Google Sheets · Registrar Incidente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Google Sheets · Registrar Incidente": {
+      "main": [
+        [
+          {
+            "node": "✈️ Telegram · Notificación al Ciudadano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✈️ Telegram · Notificación al Ciudadano": {
+      "main": [
+        [
+          {
+            "node": "✅ Respuesta HTTP al Formulario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 Bot Telegram · Consultas Ciudadanos": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Parseo de Comandos Bot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Parseo de Comandos Bot": {
+      "main": [
+        [
+          {
+            "node": "🔀 ¿Consultar Ticket?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 ¿Consultar Ticket?": {
+      "main": [
+        [
+          {
+            "node": "📊 Sheets · Buscar Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "✈️ Telegram · Menú Principal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Sheets · Buscar Ticket": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Construir Respuesta Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Construir Respuesta Ticket": {
+      "main": [
+        [
+          {
+            "node": "✈️ Telegram · Responder Consulta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "✈️ Telegram · Sospecha Spam",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "✈️ Telegram · Alerta Emergencia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "✈️ Telegram · Alerta Supervisores",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "✈️ Telegram · Cola Normal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗺️ Geocodificación OSM": {
+      "main": [
+        [
+          {
+            "node": "tiene imagen?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tiene imagen?": {
+      "main": [
+        [
+          {
+            "node": "IA Filtro visual",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🧠 IA · Análisis NLP (Texto + Contexto)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA Filtro visual": {
+      "main": [
+        [
+          {
+            "node": "imagen valida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "imagen valida?": {
+      "main": [
+        [
+          {
+            "node": "🧠 IA · Análisis NLP (Texto + Contexto)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "✈️ Telegram · Sospecha Spam",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "9ee0529c-e7b7-4d83-9a82-163783f20759",
+  "meta": {
+    "instanceId": "bf173acd6d8c9a4793947c6fcdde1accde4d45c5dd15bef4066021f98234fa22"
+  },
+  "nodeGroups": [],
+  "id": "OMoYyJZcbsH88zEo",
+  "tags": []
+}
