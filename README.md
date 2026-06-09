@@ -60,7 +60,7 @@ HTTP 200 → formulario web muestra panel de éxito
 - ✅ Análisis NLP con score de severidad 0–100 y nivel de confianza
 - ✅ Filtro anti-spam visual (la IA detecta si la foto es de vía pública)
 - ✅ Enrutamiento híbrido en 4 rutas (crítica / moderada / normal / spam)
-- ✅ Bot de Telegram con `/consultar`, `/metricas` y menú de ayuda
+- ✅ Bot de Telegram con `/consultar`, `/ayuda` y menú de ayuda
 - ✅ Panel de métricas en tiempo real: tasa de resolución, tiempo promedio de cierre, top categorías
 
 ---
@@ -71,7 +71,7 @@ HTTP 200 → formulario web muestra panel de éxito
 |---------|---------|
 | `/start` | Menú principal |
 | `/consultar SCF-XXXXXX` | Estado de un ticket |
-| `/metricas` | Panel de control en tiempo real |
+| `/desconocido` | Telegram no entendí |
 | `/ayuda` | Lista de comandos |
 
 ---
@@ -81,7 +81,7 @@ HTTP 200 → formulario web muestra panel de éxito
 ```
 smartcityfix/
 ├── index.html                        # Formulario web (SPA)
-├── workflow_smartcityfix_v2.json     # Workflow n8n (importar directo)
+├── Workflow_SmartCity-Fix            # Workflow n8n (importar directo)
 └── README.md                         # Este archivo
 ```
 
