@@ -1,5 +1,3 @@
-# Smartcityfix-Lisseth_D2
-
 # 🏙️ SmartCity-Fix
 
 > Sistema automatizado de recepción, diagnóstico y enrutamiento de reportes de daños en infraestructura urbana.
